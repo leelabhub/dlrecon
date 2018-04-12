@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 
 from keras.models import Model
-from keras.layers import Input, Conv3D, MaxPooling3D, concatenate, add, BatchNormalization, Activation, Conv3DTranspose, Cropping3D
+from keras.layers import Input, Conv3D, MaxPooling3D, concatenate, add, BatchNormalization, Activation, Conv3DTranspose, Cropping3D, Reshape, Dense, Concatenate, Lambda
 #from keras_contrib.layers.convolutional import Deconvolution3D
 from keras import losses
 from keras.optimizers import Adam
@@ -13,11 +13,12 @@ from keras import backend as K
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard as tfb
 
-def unet_3d_model(input_size, batch_norm_order=None):
+def unet_3d_model(input_size, image_size, batch_norm_order=None):
 
     # input size is a tuple of the size of the image
     # assuming channel last
-    # input_size = (dim1, dim2, dim3, ch)
+    # input_size = (2*n_enc, dim3) stacked real and imaginary parts for fourier domain data
+    # image_size = (dim1, dim2, dim3, ch)
     # batch_norm_order : None (for no batch normalization), 'bn-act' or 'act-bn'.
 
     nfeatures = [32,64,128,256,512]
@@ -28,8 +29,28 @@ def unet_3d_model(input_size, batch_norm_order=None):
     # input layer
     inputs = Input(input_size)
 
+    # fully connected layer
+    fclayer_shared = Dense(np.prod(image_size[:-2]))
+    
+    fc_list=[]
+    for dim3_idx in xrange(image_size[2]):
+        sliced_input = Lambda(lambda x: x[:,dim3_idx])(inputs)
+        # apply batch norm
+        sliced_input_bn = BatchNormalization()(sliced_input)
+        # apply activation
+        sliced_input_bn_act = Activation(activation='relu')(sliced_input_bn)
+
+        fc_list.append(fclayer_shared(sliced_input_bn_act))
+    
+    # concatenate dim3 many tensors of shape (dim1*dim2)
+    fc = Concatenate()(fc_list)
+
+    # reshape as an image
+    fc_reshaped = Reshape(image_size)(fc)
+
     # step down convolutional layers
-    pool = inputs
+    #pool = inputs
+    pool = fc_reshaped
     for depth_cnt in xrange(depth):
     	conv = conv3Dlayer(input_tensor=pool, filters=nfeatures[depth_cnt], kernel_size=(3,3,3),
     						 padding='same', activation='relu', batch_norm_order=None)
@@ -88,8 +109,8 @@ def unet_3d_model(input_size, batch_norm_order=None):
     # combine features
     conv = Conv3D(1, (1,1,1), padding='same', activation=None)(conv)
 
-    # add input image to the computed residual
-    recon = add([inputs,conv])
+    # add fc output to the computed residual
+    recon = add([fc_reshaped,conv])
 
     model = Model(inputs=[inputs], outputs=[recon])
     #plot_model(model, to_file='unet3d.png',show_shapes=True)

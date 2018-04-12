@@ -29,26 +29,27 @@ def train():
 
     # training and validation image size
     img_size = (140,140,32,1)
+    input_size = (5992*2,32)#(2*5992*32,)
 
     # training data
-    train_path_zf = '%s/calkan/LeeLabRatImageDatabase/2d_small_training_new/regridded' % os.environ['OAK']
+    train_path_ksp = '%s/calkan/LeeLabRatImageDatabase/2d_small_training_new/kspace' % os.environ['OAK']
     train_path_orig = '%s/calkan/LeeLabRatImageDatabase/2d_small_training_new/original' % os.environ['OAK']
     train_batch_size = 8
-    train_files,train_nbatches = calc_generator_info(train_path_zf,
+    train_files,train_nbatches = calc_generator_info(train_path_ksp,
                                                      train_batch_size)
     print('[INFO] Training data size: %d, batch size: %d, batches per epochs: %d' % (len(train_files), train_batch_size, train_nbatches))
 
 
     # validation data
-    valid_path_zf = '%s/calkan/LeeLabRatImageDatabase/2d_small_validation_new/regridded' % os.environ['OAK']
+    valid_path_ksp = '%s/calkan/LeeLabRatImageDatabase/2d_small_validation_new/kspace' % os.environ['OAK']
     valid_path_orig = '%s/calkan/LeeLabRatImageDatabase/2d_small_validation_new/original' % os.environ['OAK']
     valid_batch_size = 8
-    valid_files,valid_nbatches = calc_generator_info(valid_path_zf,
+    valid_files,valid_nbatches = calc_generator_info(valid_path_ksp,
                                                      valid_batch_size)
     print('[INFO] Validation data size: %d, batch size: %d, batches per epochs: %d' % (len(valid_files), valid_batch_size, valid_nbatches))
 
     # create the unet model
-    model = unet_3d_model(img_size, batch_norm_order=None)
+    model = unet_3d_model(input_size, img_size, batch_norm_order=None)
     model.compile(optimizer=Adam(lr=1e-5),loss=losses.mean_squared_error)
     
     # create folders first
@@ -64,11 +65,11 @@ def train():
 
     # train
     bl_callback = BatchLoss()
-    hist = model.fit_generator(img_generator(train_path_zf, train_path_orig, train_batch_size,
-                                             img_size[0:3]),
+    hist = model.fit_generator(img_generator(train_path_ksp, train_path_orig, train_batch_size,
+                                             input_size, img_size[0:3]),
                 train_nbatches,epochs=30,
-                validation_data=img_generator(valid_path_zf, valid_path_orig, valid_batch_size,
-                                                img_size[0:3]),
+                validation_data=img_generator(valid_path_ksp, valid_path_orig, valid_batch_size,
+                                                input_size, img_size[0:3]),
                 validation_steps=valid_nbatches,
                 callbacks=[bl_callback,cp_callback])
 

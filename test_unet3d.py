@@ -28,8 +28,9 @@ import matplotlib.pyplot as plt
 def test():
 
     #img_size = (128,192,96,1)
+    #img_size = (140,140,32,1)
     img_size = (140,140,32,1)
-   
+    input_size = (5992*2,32)
     # find the model checkpoint path corresponding to epoch number 29
     chckpnts = next(os.walk('./checkpoints'))[2]
     chckpnt_path = [item for item in chckpnts if item.startswith('weights.029')][0]
@@ -41,7 +42,7 @@ def test():
     # weight = layer.get_weights()
     # print(np.squeeze(weight[0])[:,0,0,0])
 
-    test_path_zf = '%s/calkan/LeeLabRatImageDatabase/2d_small_test_new/regridded' % os.environ['OAK']
+    test_path_zf = '%s/calkan/LeeLabRatImageDatabase/2d_small_test_new/kspace' % os.environ['OAK']
     test_path_orig = '%s/calkan/LeeLabRatImageDatabase/2d_small_test_new/original' % os.environ['OAK']
     test_result_path = './test_results'
     test_result_images_path = './test_results/images'
@@ -56,7 +57,7 @@ def test():
     prediction_times = []
     img_cnt = 0
     for x_test, y_test in img_generator(test_path_zf, test_path_orig, test_batch_size,
-                                        img_size[0:3],shuffle_files=False, verbose=True):
+                                        input_size, img_size[0:3],shuffle_files=False, verbose=True):
         # remove the .h5 part from the image name
         image_name = test_files[img_cnt][:-3]
         print('predicting image %s'%image_name)
