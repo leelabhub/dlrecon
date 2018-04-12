@@ -34,13 +34,16 @@ def unet_3d_model(input_size, image_size, batch_norm_order=None):
     
     fc_list=[]
     for dim3_idx in xrange(image_size[2]):
+        # slice input
         sliced_input = Lambda(lambda x: x[:,dim3_idx])(inputs)
+        # apply fully connected layer
+        fc_sliced = fclayer_shared(sliced_input)
         # apply batch norm
-        sliced_input_bn = BatchNormalization()(sliced_input)
+        fc_sliced_bn = BatchNormalization()(fc_sliced)
         # apply activation
-        sliced_input_bn_act = Activation(activation='relu')(sliced_input_bn)
+        fc_sliced_bn_act = Activation(activation='relu')(fc_sliced_bn)
 
-        fc_list.append(fclayer_shared(sliced_input_bn_act))
+        fc_list.append(fc_sliced_bn_act)
     
     # concatenate dim3 many tensors of shape (dim1*dim2)
     fc = Concatenate()(fc_list)
